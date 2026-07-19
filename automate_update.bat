@@ -11,7 +11,7 @@ python extraction_uptodate_dataset.py
 :: github update
 git add .
 git commit -m "auto-update: updated dataset to current date"
-git push origin main
+git push -u origin master
 
 call ne_env\Scripts\deactivate
 
