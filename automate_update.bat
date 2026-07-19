@@ -1,0 +1,16 @@
+@echo off
+
+:: Change directory to peoject directory
+cd /d "%~dp0"
+
+call ne_env\Scripts\activate
+
+:: running python file
+python extraction_uptodate_dataset.py
+
+:: github update
+git add *
+git commit -m "auto-update: updated dataset to current date"
+git push origin main
+
+call ne_env\Scripts\deactivate

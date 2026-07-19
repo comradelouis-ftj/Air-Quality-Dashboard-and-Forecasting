@@ -1,0 +1,4 @@
+.env
+scripts_sql/
+__pycache__/
+ne_env/

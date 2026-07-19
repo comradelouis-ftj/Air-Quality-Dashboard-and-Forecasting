@@ -1,0 +1,51 @@
+.
+├── .gitignore
+├── app_streamlit/
+│   ├── pages/
+│   │   ├── dashboard.py
+│   │   └── predict.py
+│   ├── utils/
+│   │   └── functions.py
+│   └── main.py
+├── automate_update.bat
+├── data_cleaning.ipynb
+├── data_extraction.ipynb
+├── data_storage_db.ipynb
+├── datasets_aggr/
+│   └── weather_readings_mlready.csv
+├── datasets_clean/
+│   ├── sensor_stationid_pair.csv
+│   ├── station_details.csv
+│   └── weather_pm25_readings.csv
+├── datasets_raw/
+│   ├── sensor_readings.csv
+│   ├── station_sensors.csv
+│   └── weathers_dataset.csv
+├── docs/ ## project descriptions
+│   ├── Data Model.png
+│   ├── directory_tree.txt
+│   ├── README.md
+│   └── Transformation Schema.png
+├── extraction_uptodate_dataset.py
+├── functions/
+│   ├── scalers/
+│   │   ├── 1/
+│   │   │   ├── actual_pm25_scaler.joblib
+│   │   │   ├── pm25_scaler.joblib
+│   │   │   ├── rain_scaler.joblib
+│   │   │   ├── relative_humidity_2m_scaler.joblib
+│   │   │   ├── surface_pressure_scaler.joblib
+│   │   │   ├── temperature_2m_scaler.joblib
+│   │   │   └── wind_speed_10m_scaler.joblib
+│   │   ├── 2/
+│   │   ├── 3/
+│   │   ├── 4/
+│   │   └── 5/
+│   ├── database_actions_functions.py
+│   ├── ingestion_functions.py
+│   └── transformation_functions.py
+├── modelling.ipynb
+└── models/
+│   ├── lstm_best.keras
+│   └── training_logs_lstm.csv
+└── requirements.txt
