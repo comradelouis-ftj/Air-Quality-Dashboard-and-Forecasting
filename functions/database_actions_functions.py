@@ -196,7 +196,7 @@ def load_to_db(connection, cursor, df_cleaned):
 # note: this function is purely for adding readings that comes from stations/sensors that are already recorded in the database, and as such, will not be able to 
 #       ingest readings coming from new sensors/stations
 def extract_readinga_to_current_date(username_postgres: str, pw_postgres: str, db_name: str, headers: dict):
-    time_now = datetime.datetime.now().strftime('%Y-%m-%dT%H:00:00') # extracting the previous day's timestamp, to ensure more records are available # - datetime.timedelta(days=1)
+    time_now = datetime.datetime.now().strftime('%Y-%m-%dT%H:00:00') # extracting the current day's timestamp, to ensure more records are available # - datetime.timedelta(days=1)
     print(time_now)
     limit_old_timestamp = None # will store the last timestamp recorded in database tables
     station_start_ends = {} # will store each station's details (i.e. coordinates, id, name, and sensors)

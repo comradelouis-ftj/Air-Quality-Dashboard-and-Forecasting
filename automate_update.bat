@@ -14,3 +14,5 @@ git commit -m "auto-update: updated dataset to current date"
 git push origin main
 
 call ne_env\Scripts\deactivate
+
+powershell -Command "(New-Object -ComObject WScript.Shell).Popup('Data successfully extracted and pushed to GitHub!', 5, 'Streamlit Automation', 64)"
