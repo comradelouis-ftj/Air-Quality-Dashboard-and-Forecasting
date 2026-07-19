@@ -9,7 +9,7 @@ call ne_env\Scripts\activate
 python extraction_uptodate_dataset.py
 
 :: github update
-git add *
+git add .
 git commit -m "auto-update: updated dataset to current date"
 git push origin main
 
