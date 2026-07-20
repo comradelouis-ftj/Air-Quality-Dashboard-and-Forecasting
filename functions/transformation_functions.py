@@ -65,6 +65,8 @@ def fill_nan_values(station_name: str, df_merged):
     list_unique_sensor_id = [i for i in list(df_current['sensor_id'].unique()) if not math.isnan(i)]
     if len(list_unique_sensor_id)==1:
         df_current['sensor_id'] = int(list_unique_sensor_id[0])
+    else: # if there is no sensor, then no dataframe is returned, as there are no readings
+        return None 
 
     df_current['weather_id'] = 'W' + df_current['sensor_id'].astype(int).astype(str) + '_' + df_current['time'].dt.strftime('%Y%m%d%H') # creating unique key for each weather reading
 
