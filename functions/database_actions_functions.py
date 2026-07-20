@@ -189,6 +189,16 @@ def load_to_db(connection, cursor, df_cleaned):
         cursor.execute('''
             INSERT INTO staging.weather_readings (weather_id, sensor_id, time_reading, temperature_2m, relative_humidity_2m, wind_speed_10m, surface_pressure, rain, pm25)
             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+            ON CONFLICT (weather_id)
+            DO UPDATE SET 
+                sensor_id = EXCLUDED.sensor_id, 
+                time_reading = EXCLUDED.time_reading, 
+                temperature_2m = EXCLUDED.temperature_2m, 
+                relative_humidity_2m = EXCLUDED.relative_humidity_2m, 
+                wind_speed_10m = EXCLUDED.wind_speed_10m, 
+                surface_pressure = EXCLUDED.surface_pressure, 
+                rain = EXCLUDED.rain, 
+                pm25 = EXCLUDED.pm25;
         ''', [v for v in list(val)])
         connection.commit() # commit changes
 
@@ -278,7 +288,7 @@ def extract_readinga_to_current_date(username_postgres: str, pw_postgres: str, d
     # Cutting parts of the dataframe, ensuring that datetimes exceeding the current datetime is excluded from the final dataframe
     time_now_dt = datetime.datetime.strptime(time_now.replace('T', ' '), '%Y-%m-%d %H:%M:%S')
     limit_old_timestamp_dt = datetime.datetime.strptime(limit_old_timestamp.replace('T', ' '), '%Y-%m-%d %H:%M:%S')
-    merged_readings = merged_readings[(merged_readings['time']<time_now_dt) & (merged_readings['time']>limit_old_timestamp_dt)]
+    merged_readings = merged_readings[(merged_readings['time']>time_now_dt) & (merged_readings['time']<=limit_old_timestamp_dt)]
     merged_readings.reset_index(inplace=True, drop=True)
 
     load_to_db(connection, cursor, merged_readings)
