@@ -10,8 +10,6 @@ import os
 # Function for feature Scaling
 def scale_features(df_input):
     code_station = df_input['station_id'].iloc[0] # extracting the dataframe's station
-    print(df_input)
-    print(code_station)
     path_station_scaler = os.path.join(os.getcwd(), os.path.abspath(f'functions/scalers/{int(code_station)}')) # path for a statuib's scaler
     scaler_target = None # stores the target feature's scaler (actual_pm25)
 
@@ -67,7 +65,9 @@ def get_forecast(df_input, station_name):
     cols_num = ['temperature_2m', 'relative_humidity_2m', 'wind_speed_10m', 'surface_pressure', 'rain', 'pm25'] # numerical columns for model inference
     cols_cat = ['station_id'] # categorical column for model inference
 
-    df_station = df_cp[df_cp['station_name']==station_name].iloc[-20:].copy() # takes the last 20 weather records
+    df_station_all = df_cp[df_cp['station_name']==station_name].copy() 
+    df_station_all.reset_index(drop=True, inplace=True)
+    df_station = df_station_all.iloc[-20:].copy() # takes the last 20 weather records
     df_station_n = df_station[['time_reading']+cols_num+cols_cat] # extracts the necessary columns + the timestamp
     df_station_n['label'] = 'original' # creates a label to denote that the current PM2.5 values are the original values from the database
 
@@ -84,7 +84,7 @@ def get_forecast(df_input, station_name):
             if pd.isna(curr_pm25.pm25):
                 # Case when the PM 2.5 value is missing
                 start = (idx)-20
-                input_vals = df_cp.iloc[start-1:idx-1] # takes the previous 20 records for inference
+                input_vals = df_station_all.iloc[start-1:idx-1] # takes the previous 20 records for inference
                 input_vals['pm25'] = input_vals['pm25'].interpolate(method='polynomial', order=2).ffill().bfill() # if some of the previous 20 values are missing, it is interpolated
                 pred = predict_pm25(input_vals, cols_num=cols_num, cols_cat=cols_cat, horizon=1) # inference
                 
