@@ -10,6 +10,8 @@ import os
 # Function for feature Scaling
 def scale_features(df_input):
     code_station = df_input['station_id'].iloc[0] # extracting the dataframe's station
+    print(df_input)
+    print(code_station)
     path_station_scaler = os.path.join(os.getcwd(), os.path.abspath(f'functions/scalers/{int(code_station)}')) # path for a statuib's scaler
     scaler_target = None # stores the target feature's scaler (actual_pm25)
 
