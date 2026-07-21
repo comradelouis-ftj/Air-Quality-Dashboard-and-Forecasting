@@ -20,5 +20,4 @@ if __name__=='__main__':
 
     merged_readings=extract_readinga_to_current_date(username_postgres, pw_postgres, db_name, headers)
 
-    if merged_readings:
-        df = serve_whole_data(username_postgres, pw_postgres, db_name, limit=10000)
+    df = serve_whole_data(username_postgres, pw_postgres, db_name, limit=10000)

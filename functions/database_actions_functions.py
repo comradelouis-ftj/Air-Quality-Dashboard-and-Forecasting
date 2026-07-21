@@ -284,12 +284,14 @@ def extract_readinga_to_current_date(username_postgres: str, pw_postgres: str, d
         return None
 
     merged_readings = normalize_save_pm25_weather_readings_short(readings_pm25, readings_weather) # cleans and merged PM2.5 and weather readings
+    #print(merged_readings)
 
     # Cutting parts of the dataframe, ensuring that datetimes exceeding the current datetime is excluded from the final dataframe
     time_now_dt = datetime.datetime.strptime(time_now.replace('T', ' '), '%Y-%m-%d %H:%M:%S')
     limit_old_timestamp_dt = datetime.datetime.strptime(limit_old_timestamp.replace('T', ' '), '%Y-%m-%d %H:%M:%S')
-    merged_readings = merged_readings[(merged_readings['time']>time_now_dt) & (merged_readings['time']<=limit_old_timestamp_dt)]
+    merged_readings = merged_readings[(merged_readings['time']<time_now_dt) & (merged_readings['time']>=limit_old_timestamp_dt)]
     merged_readings.reset_index(inplace=True, drop=True)
+    #print(merged_readings)
 
     load_to_db(connection, cursor, merged_readings)
 
