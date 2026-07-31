@@ -105,7 +105,13 @@ Note: the function/usage of the functions within these files can be viewed in th
 │   ├── ingestion_functions.py
 │   └── transformation_functions.py
 ├── modelling.ipynb
-└── models/ ## stores models
+└── models/ 
+│   ├── lstm_best.keras
+│   └── training_logs_lstm.csv
+└── models_v2/ 
+│   ├── lstm_best.keras
+│   └── training_logs_lstm.csv
+└── models_v3/ ## stores the most recent model
 │   ├── lstm_best.keras
 │   └── training_logs_lstm.csv
 └── requirements.txt
