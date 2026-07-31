@@ -18,6 +18,8 @@ st.set_page_config(
 def load_data(path):
     df = pd.read_csv(path)
     df['time_reading'] = pd.to_datetime(df['time_reading'])
+    df['pm25_rolling_mean_6h'] = df['pm25'].rolling(window=6, min_periods=1).mean()
+    df['hour'] = df['time_reading'].dt.hour
     return df
 
 try:
@@ -57,7 +59,7 @@ with col2:
         if forecasts is None:
             st.error(f'**⚠️ {raw_data}**')
         else:
-            st.markdown(f'**3-Hour Forecast**', text_alignment='center')
+            st.markdown(f'**6-Hour Forecast**', text_alignment='center')
             st.table(forecasts)
 
 # -----------------------------------------------------------------------------

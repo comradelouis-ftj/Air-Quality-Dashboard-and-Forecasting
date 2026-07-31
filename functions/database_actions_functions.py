@@ -254,7 +254,9 @@ def extract_readinga_to_current_date(username_postgres: str, pw_postgres: str, d
                     WHERE wr.sensor_id=%s
                 ) AS temp;
             """, [sensor,])
-            res = cursor.fetchone()[0]
+            res = cursor.fetchone()[0] 
+            if res:
+                res -= datetime.timedelta(hours=48)
             print(f'Max datetime for {station}: {res}')
 
             # Updating the start date

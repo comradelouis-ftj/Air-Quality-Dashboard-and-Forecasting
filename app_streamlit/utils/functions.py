@@ -42,7 +42,7 @@ def apply_encoding(x):
 
 # Function for Loading Model & Model Inference
 def predict_pm25(df_input, horizon, cols_num, cols_cat):
-    model = tf.keras.models.load_model(os.path.abspath('./models/lstm_best.keras'), safe_mode=False) # extracts model
+    model = tf.keras.models.load_model(os.path.abspath('./models_v3/lstm_best.keras'), safe_mode=False) # extracts model
     
     df_try = df_input.copy() # creates copy of input data
     df_try = df_try[cols_num+cols_cat] # extracts neccessary columns
@@ -53,7 +53,7 @@ def predict_pm25(df_input, horizon, cols_num, cols_cat):
     # The shape of numerical input: (None, 20, 6) 
     # the shape of categorical input: (None, 20, 2)
     input_num = df_try[cols_num].values.reshape(len(df_try), len(cols_num))[None, :, :]
-    input_cat = df_try[cols_cat+['horizon']].values.reshape(len(df_try), 2)[None, :, :]
+    input_cat = df_try[cols_cat+['horizon']].values.reshape(len(df_try), len(cols_cat)+1)[None, :, :]
 
     pred = model.predict([input_num, input_cat]) # model inference
     return scaler_target.inverse_transform(pred)[0][0] # returning the actual, non-scaled PM 2.5 level
@@ -62,48 +62,52 @@ def predict_pm25(df_input, horizon, cols_num, cols_cat):
 def get_forecast(df_input, station_name):
     df_cp = df_input.copy() # creates a copy so the original dataframe does not get transformed
     df_cp['station_id'] = df_cp['station_name'].apply(apply_encoding) # encodes station id to singular digits
-    cols_num = ['temperature_2m', 'relative_humidity_2m', 'wind_speed_10m', 'surface_pressure', 'rain', 'pm25'] # numerical columns for model inference
+    cols_num = ['temperature_2m', 'relative_humidity_2m', 'wind_speed_10m', 'surface_pressure', 'rain', 'pm25', 'pm25_rolling_mean_6h', 'hour'] # numerical columns for model inference
     cols_cat = ['station_id'] # categorical column for model inference
 
-    df_station_all = df_cp[df_cp['station_name']==station_name].copy() 
+    df_station_all = df_cp[df_cp['station_name']==station_name].copy().sort_values(by='time_reading') # extracts the station's readings, and sorts hem by time
     df_station_all.reset_index(drop=True, inplace=True)
-    df_station = df_station_all.iloc[-20:].copy() # takes the last 20 weather records
+    df_station = df_station_all.iloc[-40:].copy() # takes the last 40 weather records, to later allow the last 20 records to have proper 6-hour-window rolling means
     df_station_n = df_station[['time_reading']+cols_num+cols_cat] # extracts the necessary columns + the timestamp
     df_station_n['label'] = 'original' # creates a label to denote that the current PM2.5 values are the original values from the database
 
-    if df_station_n['pm25'].isna().mean()>=0.70:
+    if df_station_n['pm25'].iloc[-20:].isna().mean()>=0.70:
         # If most of the last 20 entries are missing, the model will not make an inference
         return None, 'Too much of the data is missing, try again with different region or try again later'
-    elif df_station_n['pm25'].isna().mean()>0:
+    if df_station_n['pm25'].iloc[-20:].isna().mean()>0:
         # if the number of missing values are still somewhat acceptable, the model will fill in the missing values with its inference, and use a 
         # combination of actual, pre-existing values and the model's inference to make the forecast
-        for v in range(len(df_station_n)):
-            curr_pm25 = df_station_n.iloc[v] # extracts the record
+        for v in df_station_n.iloc[-20:].index.to_list():
+            curr_pm25 = df_station_n.loc[v] # extracts the record
             idx = curr_pm25.name # extracts the index
             
             if pd.isna(curr_pm25.pm25):
                 # Case when the PM 2.5 value is missing
-                start = (idx)-20
-                input_vals = df_station_all.iloc[start-1:idx-1] # takes the previous 20 records for inference
+                start = (idx+1)-20
+                input_vals = df_station_all.loc[start-1:idx-1] # takes the previous 20 records for inference
                 input_vals['pm25'] = input_vals['pm25'].interpolate(method='polynomial', order=2).ffill().bfill() # if some of the previous 20 values are missing, it is interpolated
+                input_vals['pm25_rolling_mean_6h'] = input_vals['pm25_rolling_mean_6h'].interpolate(method='polynomial', order=2).ffill().bfill()
                 pred = predict_pm25(input_vals, cols_num=cols_num, cols_cat=cols_cat, horizon=1) # inference
                 
                 # Filling in the new values
+                df_station_all.loc[idx, 'pm25'] = pred
+                df_station_all.loc[idx, 'pm25_rolling_mean_6h'] = input_vals['pm25'].loc[-6:].mean()
                 df_station_n.loc[idx, 'pm25'] = pred
+                df_station_n.loc[idx, 'pm25_rolling_mean_6h'] = input_vals['pm25'].loc[-6:].mean()
                 df_station_n.loc[idx, 'label'] = 'model-augmented (due to missing value)' # giving the augmented values a different label
                 df_cp.loc[idx, 'pm25'] = pred
-
+    
     # Model 3-hour forecast for PM 2.5 readings
     forecasts = {
         'pm25': [],
         'time': [],
         'label': []
     }
-    for i in range(3):
-        # Horizon is 3 hours, so each loop forecasts for a different horizon
-        pred_3h = predict_pm25(df_station_n, cols_num=cols_num, cols_cat=cols_cat, horizon=i+1)
+    for i in range(6):
+        # Horizon is 6 hours, so each loop forecasts for a different horizon
+        pred_6h = predict_pm25(df_station_n.iloc[-20:], cols_num=cols_num, cols_cat=cols_cat, horizon=i+1)
         time_curr = df_station['time_reading'].max() + pd.Timedelta(hours=i+1)
-        forecasts['pm25'].append(pred_3h)
+        forecasts['pm25'].append(pred_6h)
         forecasts['time'].append(time_curr)
         forecasts['label'].append('Forecast')
 
@@ -111,7 +115,7 @@ def get_forecast(df_input, station_name):
         'time_reading': 'time'
     })
 
-    return pd.DataFrame(forecasts), df_station_n[['time', 'label']+cols_num+cols_cat] # returns forecasts and the last 20 records of the dataframe
+    return pd.DataFrame(forecasts), df_station_n[['time', 'label']+cols_num+cols_cat].iloc[-20:] # returns forecasts and the last 20 records of the dataframe
 
 # Function for Visualizing Forecast result
 def create_chart(raw_data, forecasts):

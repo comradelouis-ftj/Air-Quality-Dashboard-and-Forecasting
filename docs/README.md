@@ -36,9 +36,9 @@ The idea behind this project is to practice and apply different stages of data e
 
 ## 🧠 Model Layer Details
 1. **Input Layer:** Composed of 2 different layers, numerical input (past PM 2.5 and weather readings) and categorical input (forecast horizon and location id).
-2. **Numerical Model Layer**: Passes numerical values into a Conv1d layer to extract local patterns, which is then passed into a stacked LSTM model (to learn hisitorical patterns), whose outputs are then passed into an attention layer, and then a global average pooling layer to apply weights and reduce the dimension of the output for later processing.
+2. **Numerical Model Layer**: Passes numerical values into a Conv1d layer to extract local patterns, which is then passed into an LSTM & attention layer (to learn historical patterns), and then normalized then applied to a global max pooling layer to only highlight certain units/neurons with relatively high spikes.
 3. **Categorical Embeddings Layer**: Processes static features (location id and forecast horizon) using two embedding layers (one for each features), which is then combined for later processing.
-4. **Output Layer**: Consists of Dense layers, which first concatenates (combines) outputs from the numerical model and categorical embedding layers. There are two Dense layers, and in between there are batch normalization and dropout layers to stabilize the outputs, which is fed to the latter dense layer. This last dense layer is the one that outputs the forecast.
+4. **Output Layer**: Consists of Dense layers, which first concatenates (combines) outputs from the numerical model and categorical embedding layers. There are two Dense layers, and in between there is a dropout layers to stabilize the outputs, which is fed to the latter dense layer. This last dense layer is the one that outputs the forecast.
 
 Note: further details could be viewed in the modelling.ipynb notebook, on the modelling section
 

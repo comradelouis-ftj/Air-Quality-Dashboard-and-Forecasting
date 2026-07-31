@@ -9,7 +9,7 @@ call ne_env\Scripts\activate
 python extraction_uptodate_dataset.py
 
 :: github update
-git add .
+git add datasets_aggr/weather_readings_mlready.csv
 git commit -m "auto-update: updated dataset to current date"
 git push -u origin master
 
