@@ -89,6 +89,8 @@ Note: the function/usage of the functions within these files can be viewed in th
 │   ├── scalers/ ## stores scalers used for modelling
 │   │   ├── 1/
 │   │   │   ├── actual_pm25_scaler.joblib
+│   │   │   ├── hour_scaler.joblib
+│   │   │   ├── pm25_rolling_mean_6h_scaler.joblib
 │   │   │   ├── pm25_scaler.joblib
 │   │   │   ├── rain_scaler.joblib
 │   │   │   ├── relative_humidity_2m_scaler.joblib
