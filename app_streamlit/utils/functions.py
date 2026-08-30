@@ -10,16 +10,17 @@ import os
 # Function for feature Scaling
 def scale_features(df_input):
     code_station = df_input['station_id'].iloc[0] # extracting the dataframe's station
-    path_station_scaler = os.path.join(os.getcwd(), os.path.abspath(f'functions/scalers/{int(code_station)}')) # path for a statuib's scaler
+    path_station_scaler = os.path.join(os.getcwd(), os.path.abspath(f'./functions/scalers_v4/{int(code_station)}')) # path for a statuib's scaler
     scaler_target = None # stores the target feature's scaler (actual_pm25)
 
     # Loops through all files in the scaler folder
     for file_name in os.listdir(path_station_scaler):
         col = file_name.split('_scaler')[0] # sxtracts the scaler's intended feature
         scaler = joblib.load(os.path.join(path_station_scaler, file_name)) # loading the scaler
-        if 'actual' in file_name:
+        if 'pm25_scaler' in file_name:
             # If the scaler is the target feature's scaler, it is stored in the scaler_target variable
             scaler_target = scaler
+            df_input[col] = scaler.transform(df_input[col].values.reshape(-1, 1))
             continue
 
         # transforming the numerical features (aside from target feature)
@@ -41,33 +42,35 @@ def apply_encoding(x):
         return 5
 
 # Function for Loading Model & Model Inference
-def predict_pm25(df_input, horizon, cols_num, cols_cat):
-    model = tf.keras.models.load_model(os.path.abspath('./models_v3/lstm_best.keras'), safe_mode=False) # extracts model
+def predict_pm25(df_input, cols_num, cols_cat):
+    model = tf.keras.models.load_model(os.path.abspath('./models/models_lstm_laggedfeatures_v3/lstm_best.keras'), safe_mode=False) # extracts model
     
     df_try = df_input.copy() # creates copy of input data
     df_try = df_try[cols_num+cols_cat] # extracts neccessary columns
-    df_try['horizon'] = horizon # extracts the horizon
     df_try, scaler_target = scale_features(df_try) # scaling the numerical features and extracting target scaler
 
     # Creating the proper input for model inference 
     # The shape of numerical input: (None, 20, 6) 
-    # the shape of categorical input: (None, 20, 2)
+    # the shape of categorical input: (None, 20, 1)
     input_num = df_try[cols_num].values.reshape(len(df_try), len(cols_num))[None, :, :]
-    input_cat = df_try[cols_cat+['horizon']].values.reshape(len(df_try), len(cols_cat)+1)[None, :, :]
+    input_cat = df_try[cols_cat].values.reshape(len(df_try), len(cols_cat))[None, :, :]
 
     pred = model.predict([input_num, input_cat]) # model inference
-    return scaler_target.inverse_transform(pred)[0][0] # returning the actual, non-scaled PM 2.5 level
+    return scaler_target.inverse_transform(pred[0].reshape(-1, 1)) # returning the actual, non-scaled PM 2.5 level
 
-# Function for Assembling 3-Hour Forecasts
 def get_forecast(df_input, station_name):
     df_cp = df_input.copy() # creates a copy so the original dataframe does not get transformed
     df_cp['station_id'] = df_cp['station_name'].apply(apply_encoding) # encodes station id to singular digits
-    cols_num = ['temperature_2m', 'relative_humidity_2m', 'wind_speed_10m', 'surface_pressure', 'rain', 'pm25', 'pm25_rolling_mean_6h', 'hour'] # numerical columns for model inference
+    cols_num = [
+        'temperature_2m', 'relative_humidity_2m', 'wind_speed_10m', 'surface_pressure', 'rain', 'pm25', 'temperature_2m_rolling11', 'temperature_2m_rolling24', 'relative_humidity_2m_rolling9', 
+        'relative_humidity_2m_rolling24', 'wind_speed_10m_rolling24', 'surface_pressure_rolling24', 'rain_rolling5', 'pm25_rolling24', 'hour_sin', 'hour_cos'
+    ] # numerical columns for model inference
     cols_cat = ['station_id'] # categorical column for model inference
 
     df_station_all = df_cp[df_cp['station_name']==station_name].copy().sort_values(by='time_reading') # extracts the station's readings, and sorts hem by time
     df_station_all.reset_index(drop=True, inplace=True)
-    df_station = df_station_all.iloc[-40:].copy() # takes the last 40 weather records, to later allow the last 20 records to have proper 6-hour-window rolling means
+    df_station_all['pm25_rolling24'] = df_station_all['pm25'].rolling(24).mean()
+    df_station = df_station_all.iloc[-48:].copy() # takes the last 48 weather records, to later allow the last 20 records to have proper 6-hour-window rolling means
     df_station_n = df_station[['time_reading']+cols_num+cols_cat] # extracts the necessary columns + the timestamp
     df_station_n['label'] = 'original' # creates a label to denote that the current PM2.5 values are the original values from the database
 
@@ -77,7 +80,7 @@ def get_forecast(df_input, station_name):
     if df_station_n['pm25'].iloc[-20:].isna().mean()>0:
         # if the number of missing values are still somewhat acceptable, the model will fill in the missing values with its inference, and use a 
         # combination of actual, pre-existing values and the model's inference to make the forecast
-        for v in df_station_n.iloc[-20:].index.to_list():
+        for v in df_station_n.index.to_list():
             curr_pm25 = df_station_n.loc[v] # extracts the record
             idx = curr_pm25.name # extracts the index
             
@@ -86,28 +89,34 @@ def get_forecast(df_input, station_name):
                 start = (idx+1)-20
                 input_vals = df_station_all.loc[start-1:idx-1] # takes the previous 20 records for inference
                 input_vals['pm25'] = input_vals['pm25'].interpolate(method='polynomial', order=2).ffill().bfill() # if some of the previous 20 values are missing, it is interpolated
-                input_vals['pm25_rolling_mean_6h'] = input_vals['pm25_rolling_mean_6h'].interpolate(method='polynomial', order=2).ffill().bfill()
-                pred = predict_pm25(input_vals, cols_num=cols_num, cols_cat=cols_cat, horizon=1) # inference
+                input_vals['pm25_rolling24'] = input_vals['pm25_rolling24'].interpolate(method='polynomial', order=2).ffill().bfill()
+                #display(input_vals[cols_num+cols_cat])
+                pred = predict_pm25(input_vals, cols_num=cols_num, cols_cat=cols_cat)[0] # inference
+                #break
                 
                 # Filling in the new values
                 df_station_all.loc[idx, 'pm25'] = pred
-                df_station_all.loc[idx, 'pm25_rolling_mean_6h'] = input_vals['pm25'].loc[-6:].mean()
+                df_station_all.loc[idx, 'pm25_rolling24'] = input_vals['pm25'].loc[-24:].mean()
                 df_station_n.loc[idx, 'pm25'] = pred
-                df_station_n.loc[idx, 'pm25_rolling_mean_6h'] = input_vals['pm25'].loc[-6:].mean()
+                df_station_n.loc[idx, 'pm25_rolling24'] = input_vals['pm25'].loc[-24:].mean()
                 df_station_n.loc[idx, 'label'] = 'model-augmented (due to missing value)' # giving the augmented values a different label
                 df_cp.loc[idx, 'pm25'] = pred
-    
-    # Model 3-hour forecast for PM 2.5 readings
+            df_station_all.loc[idx, 'pm25_rolling24'] = df_station_all['pm25'].loc[(idx-24):idx-1].mean()
+            df_station_n.loc[idx, 'pm25_rolling24'] = df_station_n['pm25'].loc[(idx-24):idx-1].mean()
+
+    # Model 6-hour forecast for PM 2.5 readings
     forecasts = {
         'pm25': [],
         'time': [],
         'label': []
     }
-    for i in range(6):
+    result = predict_pm25(df_station_n.iloc[-20:], cols_num=cols_num, cols_cat=cols_cat)
+
+    for i in range(len(result)):
         # Horizon is 6 hours, so each loop forecasts for a different horizon
-        pred_6h = predict_pm25(df_station_n.iloc[-20:], cols_num=cols_num, cols_cat=cols_cat, horizon=i+1)
+        curr_pred = result[i][0]
         time_curr = df_station['time_reading'].max() + pd.Timedelta(hours=i+1)
-        forecasts['pm25'].append(pred_6h)
+        forecasts['pm25'].append(curr_pred)
         forecasts['time'].append(time_curr)
         forecasts['label'].append('Forecast')
 

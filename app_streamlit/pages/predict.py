@@ -1,4 +1,5 @@
 import pandas as pd
+import numpy as np
 import os
 
 from utils.functions import get_forecast, create_chart
@@ -17,9 +18,28 @@ st.set_page_config(
 @st.cache_data
 def load_data(path):
     df = pd.read_csv(path)
-    df['time_reading'] = pd.to_datetime(df['time_reading'])
-    df['pm25_rolling_mean_6h'] = df['pm25'].rolling(window=6, min_periods=1).mean()
-    df['hour'] = df['time_reading'].dt.hour
+    list_shortened_dfs = []
+    moving_avg = {
+        'temperature_2m': [11, 24],
+        'relative_humidity_2m': [9, 24],
+        'wind_speed_10m': [24],
+        'surface_pressure': [24],
+        'rain': [5],
+        'pm25': [24]
+    }
+
+    for station in df['station_name'].unique():
+        current = df[df['station_name']==station].tail(1000)
+        current['time_reading'] = pd.to_datetime(df['time_reading'])
+        current['hour_sin'] = np.sin((2*np.pi*current['time_reading'].dt.hour)/24)
+        current['hour_cos'] = np.cos((2*np.pi*current['time_reading'].dt.hour)/24)
+
+        for col in moving_avg:
+            for val in moving_avg[col]:
+                current[f'{col}_rolling{val}'] = current[col].rolling(val).mean()
+        list_shortened_dfs.append(current)
+
+    df = pd.concat(list_shortened_dfs, ignore_index=True)
     return df
 
 try:
