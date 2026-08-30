@@ -11,6 +11,6 @@ prediction = st.Page("pages/predict.py", title="Prediction", icon="🔮")
 
 pg = st.navigation({
     "Dashboard": [dashboard],
-    "Machine Learning": [prediction]
+    #"Machine Learning": [prediction]
 })
 pg.run()
