@@ -7,7 +7,7 @@ A web application for dashboarding and forecasting PM 2.5 readings in London, on
 ## 📌 Local Set-Up Requirements
 
 1. Create a virtual environment by running: 'python -m venv venv'
-2. Install all proper dependencies (use 'pip install -r requirements.txt').
+2. Install all proper dependencies (use 'pip install -r requirements_to_download.txt').
 3. Make sure that postgresql is installed in order to store the datasets.
 4. Create a .env file which should store your OpenAQ API Key ([login & check key here](https://explore.openaq.org/login?redirect=/login)), postgresql password, and postgresql username
 4. Run these .ipynb files (in this order): data_extraction.ipynb, data_cleaning.ipynb, and data_storage_db.ipynb
@@ -30,15 +30,19 @@ The idea behind this project is to practice and apply different stages of data e
 ## 📱 Key Web App Features and Functionalities
 
 1. **Dashboard Page**: A dashboard showing details on weather condition and a summary of PM 2.5 levels across an interval of time, aggregated by hour. The specific region and time interval may be chosen by the user via a dropdown selection bar in the dshboard page.
-2. **Prediction Page**: A streamlit form which allows users to select a specific region in London using a dropdown selection bar. When selected, the app would forecasts for PM 2.5 readings for the next three hours.
+2. **Prediction Page**: A streamlit form which allows users to select a specific region in London using a dropdown selection bar. When selected, the app would forecasts for PM 2.5 readings for the next six hours.
 
 ---
 
 ## 🧠 Model Layer Details
+**LSTM Model**
 1. **Input Layer:** Composed of 2 different layers, numerical input (past PM 2.5 and weather readings) and categorical input (forecast horizon and location id).
 2. **Numerical Model Layer**: Passes numerical values into a Conv1d layer to extract local patterns, which is then passed into an LSTM & attention layer (to learn historical patterns), and then normalized then applied to a global max pooling layer to only highlight certain units/neurons with relatively high spikes.
-3. **Categorical Embeddings Layer**: Processes static features (location id and forecast horizon) using two embedding layers (one for each features), which is then combined for later processing.
-4. **Output Layer**: Consists of Dense layers, which first concatenates (combines) outputs from the numerical model and categorical embedding layers. There are two Dense layers, and in between there is a dropout layers to stabilize the outputs, which is fed to the latter dense layer. This last dense layer is the one that outputs the forecast.
+3. **Categorical Embeddings Layer**: Processes static features (location id) using one embedding layer.
+4. **Output Layer**: Consists of Dense layers, which first concatenates (combines) outputs from the numerical model and categorical embedding layers. There are two Dense layers, and in between there is a dropout layers to stabilize the outputs, which is fed to the latter dense layer. This last dense layer is the one that outputs the 6-hour forecast.
+5. **KEY CHANGE FROM PREVIOUS VERSION**: The newest model outputs a 6-hour forecast, instead of singular forecast based on input horizon digit. As such, the embedding layer now only takes one input, the location id. Other than these changess, the model architecture remains the same.
+
+**TFT (Temporal Fusion Transformer)** - utilized as an attempt to improve on the LSTM model, utilizing a model which is optimized for multi-horizon time-series forecasting. Performance of this model is, unfortunately, not bettwe than the LSTM model when using the same data inputs and preprocessing methods. As such, the deployed model in streamlit still utilizes the LSTM model.
 
 Note: further details could be viewed in the modelling.ipynb notebook, on the modelling section
 
@@ -86,7 +90,9 @@ Note: the function/usage of the functions within these files can be viewed in th
 │   └── Transformation Schema.png
 ├── extraction_uptodate_dataset.py
 ├── functions/ ## stores data pipeline functions + scalers
-│   ├── scalers/ ## stores scalers used for modelling
+|   ├── dataset_tft/
+|   |   ├── dataset_params.tft ## stores parameters for TFT dataset
+│   ├── scalers_v4/ ## stores scalers used for modelling
 │   │   ├── 1/
 │   │   │   ├── actual_pm25_scaler.joblib
 │   │   │   ├── hour_scaler.joblib
@@ -106,13 +112,17 @@ Note: the function/usage of the functions within these files can be viewed in th
 │   └── transformation_functions.py
 ├── modelling.ipynb
 └── models/ 
-│   ├── lstm_best.keras
-│   └── training_logs_lstm.csv
-└── models_v2/ 
-│   ├── lstm_best.keras
-│   └── training_logs_lstm.csv
-└── models_v3/ ## stores the most recent model
-│   ├── lstm_best.keras
-│   └── training_logs_lstm.csv
-└── requirements.txt
+│   ├── models_lstm_laggedfeatures_v3/ ## stores LSTM model
+|   |   ├── lstm_best.keras
+|   |   └── training_logs_lstm.csv
+│   └── models_tft_v5/
+|       ├── log_tft
+|       |   └── version_0
+|       |       ├── hparams.yaml
+|       |       └── metrics.csv
+|       ├── last.ckpt
+|       ├── tft_best.ckpt
+|       └── ttft_per_epoch.ckpt
+├── requirements.txt ## requirements for deployed streamlit app
+└── requirements_to_download.txt ## requirements for project
 ```
